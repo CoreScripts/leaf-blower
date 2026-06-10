@@ -4,49 +4,26 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leaf Blower Idle</title>
-
     <script>
       function getLocalUrl(rawUrl) {
           if (typeof rawUrl !== 'string') return rawUrl;
-          
-          if (rawUrl.includes('api.gx.games') || rawUrl.includes('opera-api.com')) {
-              return 'mock-json';
-          }
-          
+          if (rawUrl.includes('api.gx.games') || rawUrl.includes('opera-api.com')) return 'mock-json';
           const fileMatch = rawUrl.match(/(runner\.js|runner\.wasm|runner\.data|runner\.json|game\.unx|_buildManifest\.js)/);
-          if (fileMatch) {
-              return new URL('./' + fileMatch[1], window.location.href).href;
-          }
+          if (fileMatch) return new URL('./' + fileMatch[1], window.location.href).href;
           return rawUrl;
       }
-
       const mockPayload = {
-          data: {
-              title: "Leaf Blower Idle",
-              gameId: "local-dev",
-              version: "1.0.0",
-              manifest: { version: "1.0.0", scavenged: true }
-          },
-          status: "success",
-          valid: true
+          data: { title: "Leaf Blower Idle", gameId: "local-dev", version: "1.0.0", manifest: { version: "1.0.0", scavenged: true } },
+          status: "success", valid: true
       };
-
-      // 1. Fetch Routing
       const originalFetch = window.fetch;
       window.fetch = async function(...args) {
           let url = args[0];
           const targetsLocal = getLocalUrl(url);
-          
-          if (targetsLocal === 'mock-json') {
-              return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
-          }
-          if (targetsLocal !== url) {
-              args[0] = targetsLocal;
-          }
+          if (targetsLocal === 'mock-json') return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
+          if (targetsLocal !== url) args[0] = targetsLocal;
           return originalFetch(...args);
       };
-
-      // 2. XMLHttpRequest Routing
       const originalOpen = XMLHttpRequest.prototype.open;
       XMLHttpRequest.prototype.open = function(method, url, ...args) {
           const targetsLocal = getLocalUrl(url);
@@ -57,8 +34,6 @@
           }
           return originalOpen.call(this, method, url, ...args);
       };
-
-      // 3. Web Worker Path Normalizer
       const OriginalWorker = window.Worker;
       window.Worker = function(workerUrl, options) {
           if (typeof workerUrl === 'string' && !workerUrl.startsWith('http')) {
@@ -66,18 +41,11 @@
           }
           return new OriginalWorker(workerUrl, options);
       };
-
-      // 4. Global JSON Crash Guard
       const originalJson = Response.prototype.json;
       Response.prototype.json = async function() {
-          try {
-              return await originalJson.call(this);
-          } catch (err) {
-              return mockPayload;
-          }
+          try { return await originalJson.call(this); } catch (err) { return mockPayload; }
       };
     </script>
-
     <script>
       {
         const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/"
@@ -87,12 +55,10 @@
         window.__assetsPath = path => basePath + (path || "")
       }
     </script>
-
     <script src="assets/framework-3b691a7f793c662c.js"></script>
     <script type="module" crossorigin src="assets/index-e14a4958.js"></script>
     <link rel="stylesheet" href="assets/index-232229dc.css">
   </head>
-
   <body>
   </body>
 </html>
