@@ -23,23 +23,11 @@
     <script>
       
       try {
-          const fakeStorage = {};
-          const isStorageAvailable = () => {
-              try { window.localStorage.setItem('test', '1'); window.localStorage.removeItem('test'); return true; } 
-              catch(e) { return false; }
-          };
-          if (!isStorageAvailable()) {
-              console.warn("Storage restricted by browser. Activating Virtual Save Engine.");
-              Object.defineProperty(window, 'localStorage', {
-                  value: {
-                      getItem: (key) => fakeStorage[key] || null,
-                      setItem: (key, val) => { fakeStorage[key] = String(val); },
-                      removeItem: (key) => { delete fakeStorage[key]; },
-                      clear: () => { for (let k in fakeStorage) delete fakeStorage[k]; }
-                  },
-                  writable: true
-              });
-          }
+          Object.defineProperty(window, 'localStorage', {
+              value: window.localStorage,
+              writable: false,
+              configurable: false
+          });
       } catch(e) {}
 
       function getLocalUrl(rawUrl) {
@@ -49,28 +37,42 @@
           if (fileMatch) return new URL('./' + fileMatch[1], window.location.href).href;
           return rawUrl;
       }
+
       const mockPayload = {
-          data: { title: "Leaf Blower Idle", gameId: "local-dev", version: "1.0.0", manifest: { version: "1.0.0", scavenged: true } },
+          data: { 
+              title: "Leaf Blower Idle", 
+              gameId: "local-dev", 
+              version: "1.0.0", 
+              manifest: { version: "1.0.0", scavenged: true },
+              player: { id: "local-user", name: "Player", anonymous: false },
+              saveState: { exists: true, slot: "default" }
+          },
           status: "success", valid: true
       };
+
       const originalFetch = window.fetch;
       window.fetch = async function(...args) {
           let url = args[0];
           const targetsLocal = getLocalUrl(url);
-          if (targetsLocal === 'mock-json') return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
+          
+          if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
+              return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
+          }
           if (targetsLocal !== url) args[0] = targetsLocal;
           return originalFetch(...args);
       };
+
       const originalOpen = XMLHttpRequest.prototype.open;
       XMLHttpRequest.prototype.open = function(method, url, ...args) {
           const targetsLocal = getLocalUrl(url);
-          if (targetsLocal === 'mock-json') {
+          if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
               url = 'data:application/json,' + encodeURIComponent(JSON.stringify(mockPayload));
           } else {
               url = targetsLocal;
           }
           return originalOpen.call(this, method, url, ...args);
       };
+
       const OriginalWorker = window.Worker;
       window.Worker = function(workerUrl, options) {
           if (typeof workerUrl === 'string' && !workerUrl.startsWith('http')) {
@@ -78,6 +80,7 @@
           }
           return new OriginalWorker(workerUrl, options);
       };
+
       const originalJson = Response.prototype.json;
       Response.prototype.json = async function() {
           try { return await originalJson.call(this); } catch (err) { return mockPayload; }
