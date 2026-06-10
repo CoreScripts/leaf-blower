@@ -1,40 +1,46 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Leaf Blower Idle</title>
+
     <script>
+      // 1. Route core game files locally no matter what
       const originalFetch = window.fetch;
       window.fetch = async function(...args) {
           let url = args[0];
           if (typeof url === 'string') {
-              // 1. Route core game files locally
               if (url.includes('runner.js')) return originalFetch('./runner.js');
               if (url.includes('runner.wasm')) return originalFetch('./runner.wasm');
               if (url.includes('runner.data')) return originalFetch('./runner.data');
               if (url.includes('game.unx')) return originalFetch('./game.unx');
               if (url.includes('runner.json')) return originalFetch('./runner.json');
-
-              // 2. Intercept ANY Opera API or tracking endpoints and feed them flawless JSON
-              if (url.includes('api.gx.games') || url.includes('opera-api.com')) {
-                  const fakeResponse = {
-                      data: {
-                          title: "Leaf Blower Idle",
-                          gameId: "local-dev",
-                          version: "1.0.0",
-                          manifest: {
-                              version: "1.0.0",
-                              scavenged: true
-                          }
-                      },
-                      status: "success",
-                      valid: true
-                  };
-                  return new Response(JSON.stringify(fakeResponse), { 
-                      status: 200, 
-                      headers: {'Content-Type': 'application/json'} 
-                  });
-              }
           }
           return originalFetch(...args);
+      };
+
+      // 2. Global JSON Crash Guard: Catch any broken server data and inject clean fallback configurations
+      const originalJson = Response.prototype.json;
+      Response.prototype.json = async function() {
+          try {
+              return await originalJson.call(this);
+          } catch (err) {
+              console.warn("Caught and patched a broken JSON response from:", this.url);
+              return {
+                  data: {
+                      title: "Leaf Blower Idle",
+                      gameId: "local-dev",
+                      version: "1.0.0",
+                      manifest: {
+                          version: "1.0.0",
+                          scavenged: true
+                      }
+                  },
+                  status: "success",
+                  valid: true
+              };
+          }
       };
     </script>
 
@@ -48,9 +54,6 @@
       }
     </script>
 
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Leaf Blower Idle</title>
     <script type="module" crossorigin src="assets/index-e14a4958.js"></script>
     <link rel="stylesheet" href="assets/index-232229dc.css">
   </head>
