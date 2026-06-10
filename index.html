@@ -6,28 +6,24 @@
     <title>Leaf Blower Idle</title>
     <style>
       html, body {
-        margin: 0;
-        padding: 0;
-        width: 100%;
-        height: 100%;
-        background-color: #000;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        overflow: hidden;
+        margin: 0; padding: 0; width: 100%; height: 100%; background-color: #000;
+        display: flex; justify-content: center; align-items: center; overflow: hidden;
       }
       #canvas, canvas, main, remove-me-if-next, div[data-nextjs-scroll-focus-boundary] {
         margin: auto !important;
       }
     </style>
     <script>
-      
+      (function() {
+          const originalAssign = window.location.assign;
+          const originalReplace = window.location.replace;
+          Object.defineProperty(window.location, 'assign', { value: function(url) { console.warn('Blocked redirect:', url); }, writable: false });
+          Object.defineProperty(window.location, 'replace', { value: function(url) { console.warn('Blocked redirect:', url); }, writable: false });
+          window.onbeforeunload = function(e) { e.preventDefault(); return "Stay on page?"; };
+      })();
+
       try {
-          Object.defineProperty(window, 'localStorage', {
-              value: window.localStorage,
-              writable: false,
-              configurable: false
-          });
+          Object.defineProperty(window, 'localStorage', { value: window.localStorage, writable: false, configurable: false });
       } catch(e) {}
 
       function getLocalUrl(rawUrl) {
@@ -40,9 +36,7 @@
 
       const mockPayload = {
           data: { 
-              title: "Leaf Blower Idle", 
-              gameId: "local-dev", 
-              version: "1.0.0", 
+              title: "Leaf Blower Idle", gameId: "local-dev", version: "1.0.0", 
               manifest: { version: "1.0.0", scavenged: true },
               player: { id: "local-user", name: "Player", anonymous: false },
               saveState: { exists: true, slot: "default" }
@@ -54,7 +48,6 @@
       window.fetch = async function(...args) {
           let url = args[0];
           const targetsLocal = getLocalUrl(url);
-          
           if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
               return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
           }
