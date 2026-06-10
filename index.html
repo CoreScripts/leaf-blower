@@ -21,6 +21,27 @@
       }
     </style>
     <script>
+      
+      try {
+          const fakeStorage = {};
+          const isStorageAvailable = () => {
+              try { window.localStorage.setItem('test', '1'); window.localStorage.removeItem('test'); return true; } 
+              catch(e) { return false; }
+          };
+          if (!isStorageAvailable()) {
+              console.warn("Storage restricted by browser. Activating Virtual Save Engine.");
+              Object.defineProperty(window, 'localStorage', {
+                  value: {
+                      getItem: (key) => fakeStorage[key] || null,
+                      setItem: (key, val) => { fakeStorage[key] = String(val); },
+                      removeItem: (key) => { delete fakeStorage[key]; },
+                      clear: () => { for (let k in fakeStorage) delete fakeStorage[k]; }
+                  },
+                  writable: true
+              });
+          }
+      } catch(e) {}
+
       function getLocalUrl(rawUrl) {
           if (typeof rawUrl !== 'string') return rawUrl;
           if (rawUrl.includes('api.gx.games') || rawUrl.includes('opera-api.com')) return 'mock-json';
