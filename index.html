@@ -53,6 +53,7 @@
       window.fetch = async function(...args) {
           let url = args[0];
           const targetsLocal = getLocalUrl(url);
+          
           if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
               return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
           }
