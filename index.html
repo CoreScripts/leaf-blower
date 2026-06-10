@@ -6,13 +6,27 @@
       window.fetch = async function(...args) {
           let url = args[0];
           if (typeof url === 'string') {
-              // Catch the broken play.gx.games URL and force it to load your local file instead
-              if (url.includes('runner.js')) {
-                  return originalFetch('./runner.js');
-              }
-              // Prevent the profile check crash
+              // Force local file routing
+              if (url.includes('runner.js')) return originalFetch('./runner.js');
+              if (url.includes('runner.wasm')) return originalFetch('./runner.wasm');
+              if (url.includes('runner.data')) return originalFetch('./runner.data');
+              if (url.includes('game.unx')) return originalFetch('./game.unx');
+              if (url.includes('runner.json')) return originalFetch('./runner.json');
+
+              // Fake out the exact data structures the Opera wrapper is whining about
               if (url.includes('api.gx.games')) {
-                  return new Response(JSON.stringify({ data: {} }), { status: 200, headers: {'Content-Type': 'application/json'} });
+                  const fakeResponse = {
+                      data: {
+                          title: "Leaf Blower Idle",
+                          gameId: "local-dev",
+                          version: "1.0.0",
+                          manifest: {}
+                      }
+                  };
+                  return new Response(JSON.stringify(fakeResponse), { 
+                      status: 200, 
+                      headers: {'Content-Type': 'application/json'} 
+                  });
               }
           }
           return originalFetch(...args);
