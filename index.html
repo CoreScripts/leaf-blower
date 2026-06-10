@@ -66,6 +66,16 @@
           }
           return new OriginalWorker(workerUrl, options);
       };
+
+      // 4. Global JSON Crash Guard
+      const originalJson = Response.prototype.json;
+      Response.prototype.json = async function() {
+          try {
+              return await originalJson.call(this);
+          } catch (err) {
+              return mockPayload;
+          }
+      };
     </script>
 
     <script>
