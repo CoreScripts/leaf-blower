@@ -4,6 +4,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leaf Blower Idle</title>
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background-color: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        overflow: hidden;
+      }
+      #canvas, canvas, main, remove-me-if-next, div[data-nextjs-scroll-focus-boundary] {
+        margin: auto !important;
+      }
+    </style>
     <script>
       function getLocalUrl(rawUrl) {
           if (typeof rawUrl !== 'string') return rawUrl;
