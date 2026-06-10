@@ -6,22 +6,27 @@
       window.fetch = async function(...args) {
           let url = args[0];
           if (typeof url === 'string') {
-              // Force local file routing
+              // 1. Route core game files locally
               if (url.includes('runner.js')) return originalFetch('./runner.js');
               if (url.includes('runner.wasm')) return originalFetch('./runner.wasm');
               if (url.includes('runner.data')) return originalFetch('./runner.data');
               if (url.includes('game.unx')) return originalFetch('./game.unx');
               if (url.includes('runner.json')) return originalFetch('./runner.json');
 
-              // Fake out the exact data structures the Opera wrapper is whining about
-              if (url.includes('api.gx.games')) {
+              // 2. Intercept ANY Opera API or tracking endpoints and feed them flawless JSON
+              if (url.includes('api.gx.games') || url.includes('opera-api.com')) {
                   const fakeResponse = {
                       data: {
                           title: "Leaf Blower Idle",
                           gameId: "local-dev",
                           version: "1.0.0",
-                          manifest: {}
-                      }
+                          manifest: {
+                              version: "1.0.0",
+                              scavenged: true
+                          }
+                      },
+                      status: "success",
+                      valid: true
                   };
                   return new Response(JSON.stringify(fakeResponse), { 
                       status: 200, 
