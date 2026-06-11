@@ -94,6 +94,14 @@
       Response.prototype.json = async function() {
           try { return await originalJson.call(this); } catch (err) { return mockPayload; }
       };
+
+      setInterval(() => {
+          const gameCanvas = document.querySelector('canvas') || document.getElementById('canvas');
+          if (gameCanvas) {
+              if (gameCanvas.style.width !== '100%') gameCanvas.style.setProperty('width', '100%', 'important');
+              if (gameCanvas.style.height !== '100%') gameCanvas.style.setProperty('height', '100%', 'important');
+          }
+      }, 100);
     </script>
     <script>
       {
