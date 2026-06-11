@@ -28,6 +28,7 @@
         overflow: hidden !important;
       }
       #canvas, canvas {
+        position: relative !important;
         margin: auto !important;
         width: auto !important;
         height: auto !important;
@@ -115,48 +116,77 @@
     <link rel="stylesheet" href="assets/index-232229dc.css">
   </head>
   <body>
-    <!-- CRITICAL FIX: Intercept and force correct canvas dimensions -->
+    <!-- CRITICAL FIX: Force proper canvas sizing by overriding GameMaker's display settings -->
     <script>
       (function() {
         console.log('[Fix] Starting canvas fix...');
         
-        // Store the original function
-        const originalOnGameSetWindowSize = window.onGameSetWindowSize;
-        
-        // Override it to force our dimensions AND log what the game tries to set
-        window.onGameSetWindowSize = function(width, height) {
-          console.log(`[Fix] Game tried to set size to: ${width}x${height}`);
-          
-          // Force the correct dimensions (1920x1080 for 16:9)
-          // If the game passed 0 or 1, we override it
-          const forcedWidth = (width <= 1) ? 1920 : width;
-          const forcedHeight = (height <= 1) ? 1080 : height;
-          
-          console.log(`[Fix] Forcing size to: ${forcedWidth}x${forcedHeight}`);
-          
-          // Call the original with our forced dimensions
-          return originalOnGameSetWindowSize(forcedWidth, forcedHeight);
-        };
-        
-        // Also manually call it once the canvas exists
-        function forceCanvasSize() {
-          const canvas = document.querySelector('canvas');
-          if (canvas) {
-            console.log('[Fix] Canvas found, forcing size');
-            window.onGameSetWindowSize(1920, 1080);
+        // Wait for the GameMaker module to be available
+        function waitForModule() {
+          if (window.Module && window.Module.canvas) {
+            console.log('[Fix] Module found, applying fixes...');
+            
+            // Override the canvas sizing function that GameMaker uses
+            if (typeof window.Module.setCanvasSize === 'function') {
+              const originalSetCanvasSize = window.Module.setCanvasSize;
+              window.Module.setCanvasSize = function(width, height) {
+                console.log(`[Fix] Game tried to set canvas size to: ${width}x${height}`);
+                // Force the canvas to maintain aspect ratio relative to window
+                const windowWidth = window.innerWidth;
+                const windowHeight = window.innerHeight;
+                console.log(`[Fix] Window size: ${windowWidth}x${windowHeight}`);
+                // Call original with window dimensions to fill the space
+                return originalSetCanvasSize.call(this, windowWidth, windowHeight);
+              };
+            }
+            
+            // Also override the internal display size variables if accessible
+            Object.defineProperty(window, 'g_ActualDisplayWidth', {
+              get: function() { return window.innerWidth; },
+              set: function(value) { console.log(`[Fix] Blocked setting g_ActualDisplayWidth to ${value}`); },
+              configurable: true
+            });
+            
+            Object.defineProperty(window, 'g_ActualDisplayHeight', {
+              get: function() { return window.innerHeight; },
+              set: function(value) { console.log(`[Fix] Blocked setting g_ActualDisplayHeight to ${value}`); },
+              configurable: true
+            });
+            
+            // Force the canvas to fill the window
+            const canvas = window.Module.canvas;
+            canvas.style.position = 'relative';
+            canvas.style.width = 'auto';
+            canvas.style.height = 'auto';
+            canvas.style.maxWidth = '100vw';
+            canvas.style.maxHeight = '100vh';
+            canvas.style.objectFit = 'contain';
+            
+            // Call onGameSetWindowSize with window dimensions
+            if (typeof window.onGameSetWindowSize === 'function') {
+              window.onGameSetWindowSize(window.innerWidth, window.innerHeight);
+            }
+            
           } else {
-            setTimeout(forceCanvasSize, 100);
+            setTimeout(waitForModule, 100);
           }
         }
         
-        forceCanvasSize();
+        waitForModule();
         
-        // Also monitor for canvas being recreated
+        // Also monitor for canvas creation
         const observer = new MutationObserver(() => {
           const canvas = document.querySelector('canvas');
-          if (canvas) {
-            console.log('[Fix] Canvas detected, forcing size again');
-            window.onGameSetWindowSize(1920, 1080);
+          if (canvas && window.Module && window.Module.canvas === canvas) {
+            console.log('[Fix] Canvas detected, reapplying fixes');
+            if (typeof window.onGameSetWindowSize === 'function') {
+              window.onGameSetWindowSize(window.innerWidth, window.innerHeight);
+            }
+            canvas.style.width = 'auto';
+            canvas.style.height = 'auto';
+            canvas.style.maxWidth = '100vw';
+            canvas.style.maxHeight = '100vh';
+            canvas.style.objectFit = 'contain';
           }
         });
         observer.observe(document.body, { childList: true, subtree: true });
