@@ -115,5 +115,22 @@
     <link rel="stylesheet" href="assets/index-232229dc.css">
   </head>
   <body>
+    <!-- Fix for squished canvas: forces the wrapper to use correct aspect ratio -->
+    <script>
+      (function() {
+        function setGameSize() {
+          if (typeof window.onGameSetWindowSize === 'function') {
+            // Set the game's native resolution (16:9 aspect ratio)
+            // Adjust these values to match your game's actual resolution if needed
+            window.onGameSetWindowSize(1920, 1080);
+            console.log('[Fix] Called onGameSetWindowSize(1920, 1080)');
+          } else {
+            // Wrapper not ready yet, try again
+            setTimeout(setGameSize, 100);
+          }
+        }
+        setGameSize();
+      })();
+    </script>
   </body>
 </html>
