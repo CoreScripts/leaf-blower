@@ -2,36 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
     <title>Leaf Blower Idle</title>
     <style>
       html, body {
         margin: 0;
         padding: 0;
-        width: 100%;
-        height: 100%;
+        width: 100vw;
+        height: 100vh;
         background-color: #000;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
-        overflow: hidden;
+        overflow: hidden !important;
+        position: fixed;
       }
-      /* This targets the game container and forces it to take up the full screen */
       main, remove-me-if-next, div[data-nextjs-scroll-focus-boundary] {
-        width: 100% !important;
-        height: 100% !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
         display: flex !important;
         justify-content: center !important;
         align-items: center !important;
+        overflow: hidden !important;
       }
-      /* This stretches the actual game window canvas out into the black bars */
       #canvas, canvas {
         margin: auto !important;
-        width: 100vw !important;
-        height: 100vh !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        object-fit: fill !important; /* Forces the game to expand into the screen ratio */
+        width: 100% !important;
+        height: 100% !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        object-fit: contain !important;
+        display: block !important;
       }
     </style>
     <script>
