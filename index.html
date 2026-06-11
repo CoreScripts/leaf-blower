@@ -2,33 +2,22 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Leaf Blower Idle</title>
     <style>
-      * {
-        box-sizing: border-box;
-      }
       html, body {
         margin: 0;
         padding: 0;
-        width: 100vw;
-        height: 100vh;
+        width: 100%;
+        height: 100%;
         background-color: #000;
-        display: flex !important;
-        justify-content: center !important;
-        align-items: center !important;
+        display: flex;
+        justify-content: center;
+        align-items: center;
         overflow: hidden;
-        position: fixed;
       }
       #canvas, canvas, main, remove-me-if-next, div[data-nextjs-scroll-focus-boundary] {
-        position: relative !important;
         margin: auto !important;
-        max-width: 100vw !important;
-        max-height: 100vh !important;
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: contain !important;
-        display: block !important;
       }
     </style>
     <script>
@@ -94,14 +83,6 @@
       Response.prototype.json = async function() {
           try { return await originalJson.call(this); } catch (err) { return mockPayload; }
       };
-
-      setInterval(() => {
-          const gameCanvas = document.querySelector('canvas') || document.getElementById('canvas');
-          if (gameCanvas) {
-              if (gameCanvas.style.width !== '100%') gameCanvas.style.setProperty('width', '100%', 'important');
-              if (gameCanvas.style.height !== '100%') gameCanvas.style.setProperty('height', '100%', 'important');
-          }
-      }, 100);
     </script>
     <script>
       {
