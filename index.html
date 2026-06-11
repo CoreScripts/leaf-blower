@@ -115,66 +115,51 @@
     <link rel="stylesheet" href="assets/index-232229dc.css">
   </head>
   <body>
-    <!-- FORCE FIX: Override canvas sizing and force full window -->
+    <!-- CRITICAL FIX: Intercept and force correct canvas dimensions -->
     <script>
       (function() {
-        // Force canvas to fill the screen using a ResizeObserver
-        function forceCanvasFill() {
+        console.log('[Fix] Starting canvas fix...');
+        
+        // Store the original function
+        const originalOnGameSetWindowSize = window.onGameSetWindowSize;
+        
+        // Override it to force our dimensions AND log what the game tries to set
+        window.onGameSetWindowSize = function(width, height) {
+          console.log(`[Fix] Game tried to set size to: ${width}x${height}`);
+          
+          // Force the correct dimensions (1920x1080 for 16:9)
+          // If the game passed 0 or 1, we override it
+          const forcedWidth = (width <= 1) ? 1920 : width;
+          const forcedHeight = (height <= 1) ? 1080 : height;
+          
+          console.log(`[Fix] Forcing size to: ${forcedWidth}x${forcedHeight}`);
+          
+          // Call the original with our forced dimensions
+          return originalOnGameSetWindowSize(forcedWidth, forcedHeight);
+        };
+        
+        // Also manually call it once the canvas exists
+        function forceCanvasSize() {
           const canvas = document.querySelector('canvas');
-          if (!canvas) {
-            setTimeout(forceCanvasFill, 100);
-            return;
+          if (canvas) {
+            console.log('[Fix] Canvas found, forcing size');
+            window.onGameSetWindowSize(1920, 1080);
+          } else {
+            setTimeout(forceCanvasSize, 100);
           }
-          
-          const parent = canvas.parentElement;
-          
-          // Force parent to fill screen
-          if (parent) {
-            parent.style.position = 'fixed';
-            parent.style.top = '0';
-            parent.style.left = '0';
-            parent.style.width = '100vw';
-            parent.style.height = '100vh';
-            parent.style.display = 'flex';
-            parent.style.alignItems = 'center';
-            parent.style.justifyContent = 'center';
-          }
-          
-          // Override any inline styles on canvas
-          canvas.style.position = 'relative';
-          canvas.style.width = 'auto';
-          canvas.style.height = 'auto';
-          canvas.style.maxWidth = '100vw';
-          canvas.style.maxHeight = '100vh';
-          canvas.style.objectFit = 'contain';
-          
-          // Also override the wrapper's sizing function if it exists
-          if (typeof window.onGameSetWindowSize === 'function') {
-            window.onGameSetWindowSize(window.innerWidth, window.innerHeight);
-          }
-          
-          // Monitor for size changes
-          const resizeObserver = new ResizeObserver(() => {
-            if (typeof window.onGameSetWindowSize === 'function') {
-              window.onGameSetWindowSize(window.innerWidth, window.innerHeight);
-            }
-          });
-          resizeObserver.observe(document.body);
-          
-          console.log('[Fix] Canvas force-fill applied');
         }
         
-        // Run after everything loads
-        if (document.readyState === 'loading') {
-          document.addEventListener('DOMContentLoaded', forceCanvasFill);
-        } else {
-          forceCanvasFill();
-        }
+        forceCanvasSize();
         
-        // Also run after all scripts (including wrapper)
-        setTimeout(forceCanvasFill, 500);
-        setTimeout(forceCanvasFill, 1000);
-        setTimeout(forceCanvasFill, 2000);
+        // Also monitor for canvas being recreated
+        const observer = new MutationObserver(() => {
+          const canvas = document.querySelector('canvas');
+          if (canvas) {
+            console.log('[Fix] Canvas detected, forcing size again');
+            window.onGameSetWindowSize(1920, 1080);
+          }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
       })();
     </script>
   </body>
