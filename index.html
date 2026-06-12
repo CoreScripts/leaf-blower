@@ -1,195 +1,147 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Leaf Blower Idle</title>
     <style>
-      /* RESET & FULLSCREEN FIX */
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-        user-select: none; /* optional: prevents accidental selection on mobile */
-      }
+        /* RESET */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-      html, body {
-        width: 100%;
-        height: 100%;
-        background: black;
-        overflow: hidden;
-        position: fixed;
-        top: 0;
-        left: 0;
-      }
+        html, body {
+            width: 100%;
+            height: 100%;
+            background: #000;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
 
-      /* The container that will hold the game canvas */
-      .game-container {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: black;
-      }
+        /* Container centers the canvas */
+        .game-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #000;
+        }
 
-      /* The canvas itself – force it to fill the container without distortion */
-      canvas {
-        display: block !important;
-        width: 100% !important;
-        height: 100% !important;
-        object-fit: contain !important;  /* keeps aspect ratio, no cropping */
-        background: black !important;
-      }
-
-      /* Small additional fix for any unexpected parent elements */
-      .game-container > * {
-        max-width: 100%;
-        max-height: 100%;
-      }
+        /* Canvas gets explicit pixel dimensions set by JS */
+        canvas {
+            display: block;
+            background: #000;
+        }
     </style>
-  
-    <!-- Your existing mock/local storage scripts (kept as-is) -->
-    <script>
-      try {
-        Object.defineProperty(window, 'localStorage', {
-          value: window.localStorage,
-          writable: false,
-          configurable: false
-        });
-      } catch(e) {}
-
-      function getLocalUrl(rawUrl) {
-        if (typeof rawUrl !== 'string') return rawUrl;
-        if (rawUrl.includes('api.gx.games') || rawUrl.includes('opera-api.com')) return 'mock-json';
-        const fileMatch = rawUrl.match(/(runner\.js|runner\.wasm|runner\.data|runner\.json|game\.unx|_buildManifest\.js)/);
-        if (fileMatch) return new URL('./' + fileMatch[1], window.location.href).href;
-        return rawUrl;
-      }
-
-      const mockPayload = {
-        data: { 
-          title: "Leaf Blower Idle", 
-          gameId: "local-dev", 
-          version: "1.0.0", 
-          manifest: { version: "1.0.0", scavenged: true },
-          player: { id: "local-user", name: "Player", anonymous: false },
-          saveState: { exists: true, slot: "default" }
-        },
-        status: "success", valid: true
-      };
-
-      const originalFetch = window.fetch;
-      window.fetch = async function(...args) {
-        let url = args[0];
-        const targetsLocal = getLocalUrl(url);
-        if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
-          return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
-        }
-        if (targetsLocal !== url) args[0] = targetsLocal;
-        return originalFetch(...args);
-      };
-
-      const originalOpen = XMLHttpRequest.prototype.open;
-      XMLHttpRequest.prototype.open = function(method, url, ...args) {
-        const targetsLocal = getLocalUrl(url);
-        if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
-          url = 'data:application/json,' + encodeURIComponent(JSON.stringify(mockPayload));
-        } else {
-          url = targetsLocal;
-        }
-        return originalOpen.call(this, method, url, ...args);
-      };
-
-      const OriginalWorker = window.Worker;
-      window.Worker = function(workerUrl, options) {
-        if (typeof workerUrl === 'string' && !workerUrl.startsWith('http')) {
-          workerUrl = new URL(workerUrl, window.location.origin + window.location.pathname).href;
-        }
-        return new OriginalWorker(workerUrl, options);
-      };
-
-      const originalJson = Response.prototype.json;
-      Response.prototype.json = async function() {
-        try { return await originalJson.call(this); } catch (err) { return mockPayload; }
-      };
-    </script>
-    <script>
-      {
-        const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/"
-        const base = document.createElement("base")
-        base.href = basePath
-        document.head.appendChild(base)
-        window.__assetsPath = path => basePath + (path || "")
-      }
-    </script>
-  
-    <!-- Your original scripts (these load the actual game) -->
-    <script src="assets/framework-3b691a7f793c662c.js"></script>
-    <script type="module" crossorigin src="assets/index-e14a4958.js"></script>
-    <link rel="stylesheet" href="assets/index-232229dc.css">
-  </head>
-  <body>
-    <!-- The game will insert its canvas here. Our CSS forces it to fill the screen. -->
+</head>
+<body>
     <div class="game-container"></div>
 
-    <!-- FINAL FORCE FIX: Ensure the canvas moves into our container and is sized correctly -->
+    <!-- Mock localStorage for game saves -->
     <script>
-      (function() {
-        // Wait for the canvas to be created (GameMaker adds it dynamically)
-        function waitForCanvas() {
-          const canvas = document.querySelector('canvas');
-          if (!canvas) {
-            setTimeout(waitForCanvas, 50);
-            return;
-          }
-
-          // Move canvas into our container (if not already there)
-          const container = document.querySelector('.game-container');
-          if (canvas.parentElement !== container) {
-            container.appendChild(canvas);
-          }
-
-          // Force canvas styles to fill container
-          canvas.style.cssText = `
-            display: block !important;
-            width: 100% !important;
-            height: 100% !important;
-            object-fit: contain !important;
-            background: black !important;
-          `;
-
-          // Notify the wrapper of the actual displayed size
-          function notifySize() {
-            if (typeof window.onGameSetWindowSize === 'function') {
-              const rect = canvas.getBoundingClientRect();
-              window.onGameSetWindowSize(rect.width, rect.height);
-            }
-          }
-
-          // Run once and on resize/orientation change
-          notifySize();
-          window.addEventListener('resize', notifySize);
-          window.addEventListener('orientationchange', notifySize);
-
-          console.log('[Fix] Canvas successfully forced to full screen.');
+        if (typeof localStorage === 'undefined') {
+            let store = {};
+            window.localStorage = {
+                getItem: (key) => store[key] || null,
+                setItem: (key, value) => { store[key] = value.toString(); },
+                removeItem: (key) => { delete store[key]; },
+                clear: () => { store = {}; }
+            };
         }
-
-        // Start watching for canvas creation
-        waitForCanvas();
-
-        // Also observe DOM changes (in case the canvas is recreated)
-        const observer = new MutationObserver(() => {
-          if (document.querySelector('canvas')) {
-            waitForCanvas();
-            observer.disconnect(); // once fixed, stop observing
-          }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-      })();
     </script>
-  </body>
+
+    <!-- Load the game's runner -->
+    <script src="runner.js"></script>
+
+    <!-- SCALING FIX: Calculate proper canvas dimensions based on game's native resolution -->
+    <script>
+        (function() {
+            // Game's native resolution (from framework analysis: 1024x768, 4:3 aspect ratio)
+            const GAME_WIDTH = 1024;
+            const GAME_HEIGHT = 768;
+            const GAME_ASPECT = GAME_WIDTH / GAME_HEIGHT; // 1.333...
+
+            let canvas = null;
+            let container = null;
+
+            function resizeCanvas() {
+                if (!canvas || !container) {
+                    canvas = document.querySelector('canvas');
+                    container = document.querySelector('.game-container');
+                    if (!canvas || !container) {
+                        setTimeout(resizeCanvas, 100);
+                        return;
+                    }
+                    // Move canvas into container if needed
+                    if (canvas.parentElement !== container) {
+                        container.appendChild(canvas);
+                    }
+                }
+
+                // Get available screen size
+                const containerWidth = container.clientWidth;
+                const containerHeight = container.clientHeight;
+                const containerAspect = containerWidth / containerHeight;
+
+                let newWidth, newHeight;
+
+                // Calculate dimensions to fit while preserving aspect ratio
+                if (containerAspect > GAME_ASPECT) {
+                    // Container is wider than game → fit to height
+                    newHeight = containerHeight;
+                    newWidth = newHeight * GAME_ASPECT;
+                } else {
+                    // Container is taller than game → fit to width
+                    newWidth = containerWidth;
+                    newHeight = newWidth / GAME_ASPECT;
+                }
+
+                // Apply explicit pixel dimensions
+                canvas.style.width = `${newWidth}px`;
+                canvas.style.height = `${newHeight}px`;
+                
+                // Also set canvas intrinsic dimensions for game rendering
+                canvas.width = GAME_WIDTH;
+                canvas.height = GAME_HEIGHT;
+
+                // Notify the game wrapper about the new size
+                if (typeof window.onGameSetWindowSize === 'function') {
+                    window.onGameSetWindowSize(newWidth, newHeight);
+                }
+
+                console.log(`[Resize] Container: ${containerWidth}x${containerHeight} → Canvas: ${newWidth}x${newHeight}`);
+            }
+
+            // Initial setup
+            function init() {
+                resizeCanvas();
+                window.addEventListener('resize', resizeCanvas);
+                window.addEventListener('orientationchange', resizeCanvas);
+                
+                // Also watch for canvas being recreated
+                const observer = new MutationObserver(() => {
+                    if (document.querySelector('canvas') !== canvas) {
+                        canvas = null;
+                        resizeCanvas();
+                    }
+                });
+                observer.observe(document.body, { childList: true, subtree: true });
+            }
+
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', init);
+            } else {
+                init();
+            }
+        })();
+    </script>
+</body>
 </html>
