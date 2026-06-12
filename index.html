@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Leaf Blower Idle</title>
     <style>
-        /* RESET */
         * {
             margin: 0;
             padding: 0;
@@ -22,7 +21,6 @@
             left: 0;
         }
 
-        /* Container centers the canvas */
         .game-container {
             position: absolute;
             top: 0;
@@ -35,29 +33,120 @@
             background: #000;
         }
 
-        /* Canvas gets explicit pixel dimensions set by JS */
         canvas {
             display: block;
             background: #000;
         }
     </style>
     
-    <!-- Set the correct base path for all assets -->
+    <!-- Set base path -->
     <script>
-        // Set the base path to the current directory (where index.html lives)
         const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/";
         const base = document.createElement("base");
         base.href = basePath;
         document.head.appendChild(base);
-        window.__assetsPath = path => basePath + (path || "");
     </script>
-</head>
-<body>
-    <div class="game-container"></div>
 
-    <!-- Mock localStorage for game saves -->
+    <!-- MOCK ALL EXTERNAL API CALLS -->
     <script>
-        if (typeof localStorage === 'undefined') {
+        // Mock data for GX.games API
+        const MOCK_GAME_DATA = {
+            data: {
+                title: "Leaf Blower Idle",
+                gameId: "local-dev",
+                trackId: "",
+                releaseId: "",
+                coverImage: "",
+                gamePlayId: "mock-gameplay-id",
+                clientId: "mock-client-id",
+                sessionId: "mock-session-id",
+                feSessionId: "mock-fe-session-id"
+            }
+        };
+
+        // Mock runner.json (the game's manifest)
+        const MOCK_RUNNER = {
+            mainJS: "game.unx",
+            manifestFiles: ["game.unx"],
+            legacyRunner: true
+        };
+
+        // Store original fetch
+        const originalFetch = window.fetch;
+        
+        // Override fetch to mock external APIs
+        window.fetch = async function(url, options) {
+            const urlStr = typeof url === 'string' ? url : url.url;
+            
+            console.log('[Mock] Fetch:', urlStr);
+            
+            // Mock GX.games API calls
+            if (urlStr.includes('api.gx.games') || urlStr.includes('play.gx.games')) {
+                console.log('[Mock] Intercepted GX API call, returning mock data');
+                return new Response(JSON.stringify(MOCK_GAME_DATA), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+            
+            // Mock runner.json (prevent CORS errors)
+            if (urlStr.includes('runner.json')) {
+                console.log('[Mock] Intercepted runner.json request, returning mock manifest');
+                return new Response(JSON.stringify(MOCK_RUNNER), {
+                    status: 200,
+                    headers: { 'Content-Type': 'application/json' }
+                });
+            }
+            
+            // Mock Sentry (error tracking)
+            if (urlStr.includes('sentry-relay.opera-api.com')) {
+                console.log('[Mock] Blocked Sentry request');
+                return new Response('OK', { status: 200 });
+            }
+            
+            // Let all other requests through (local assets)
+            return originalFetch(url, options);
+        };
+        
+        // Mock XMLHttpRequest for same APIs
+        const originalXHROpen = XMLHttpRequest.prototype.open;
+        XMLHttpRequest.prototype.open = function(method, url, ...args) {
+            this._url = url;
+            if (typeof url === 'string' && 
+                (url.includes('api.gx.games') || 
+                 url.includes('play.gx.games') || 
+                 url.includes('runner.json') ||
+                 url.includes('sentry-relay.opera-api.com'))) {
+                console.log('[Mock] XHR intercepted:', url);
+                // Return mock response immediately
+                setTimeout(() => {
+                    if (this.onload) {
+                        Object.defineProperty(this, 'response', {
+                            value: JSON.stringify(url.includes('runner.json') ? MOCK_RUNNER : MOCK_GAME_DATA)
+                        });
+                        Object.defineProperty(this, 'status', { value: 200 });
+                        this.onload();
+                    }
+                }, 10);
+                return;
+            }
+            return originalXHROpen.call(this, method, url, ...args);
+        };
+        
+        // Mock Service Worker (not available on GitHub Pages)
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register = function() {
+                console.log('[Mock] ServiceWorker registration blocked');
+                return Promise.reject(new Error('ServiceWorker not supported in this context'));
+            };
+        }
+        
+        console.log('[Mock] All external API mocks initialized');
+    </script>
+
+    <!-- Mock localStorage -->
+    <script>
+        if (typeof localStorage === 'undefined' || !localStorage.getItem) {
             let store = {};
             window.localStorage = {
                 getItem: (key) => store[key] || null,
@@ -67,19 +156,21 @@
             };
         }
     </script>
+</head>
+<body>
+    <div class="game-container"></div>
 
-    <!-- Load the game's framework and assets (order matters!) -->
+    <!-- Load game assets -->
     <script src="assets/framework-3b691a7f793c662c.js"></script>
     <script type="module" crossorigin src="assets/index-e14a4958.js"></script>
     <link rel="stylesheet" href="assets/index-232229dc.css">
 
-    <!-- SCALING FIX: Calculate proper canvas dimensions based on game's native resolution -->
+    <!-- CANVAS SCALING FIX -->
     <script>
         (function() {
-            // Game's native resolution (from framework analysis: 1024x768, 4:3 aspect ratio)
             const GAME_WIDTH = 1024;
             const GAME_HEIGHT = 768;
-            const GAME_ASPECT = GAME_WIDTH / GAME_HEIGHT; // 1.333...
+            const GAME_ASPECT = GAME_WIDTH / GAME_HEIGHT;
 
             let canvas = null;
             let container = null;
@@ -93,62 +184,49 @@
                         setTimeout(resizeCanvas, 100);
                         return;
                     }
-                    // Move canvas into container if needed
                     if (canvas.parentElement !== container) {
                         container.appendChild(canvas);
                     }
                 }
 
-                // Get available screen size
                 const containerWidth = container.clientWidth;
                 const containerHeight = container.clientHeight;
                 const containerAspect = containerWidth / containerHeight;
 
                 let newWidth, newHeight;
 
-                // Calculate dimensions to fit while preserving aspect ratio
                 if (containerAspect > GAME_ASPECT) {
-                    // Container is wider than game → fit to height
                     newHeight = containerHeight;
                     newWidth = newHeight * GAME_ASPECT;
                 } else {
-                    // Container is taller than game → fit to width
                     newWidth = containerWidth;
                     newHeight = newWidth / GAME_ASPECT;
                 }
 
-                // Apply explicit pixel dimensions
                 canvas.style.width = `${newWidth}px`;
                 canvas.style.height = `${newHeight}px`;
-                
-                // Also set canvas intrinsic dimensions for game rendering
                 canvas.width = GAME_WIDTH;
                 canvas.height = GAME_HEIGHT;
 
-                // Notify the game wrapper about the new size
                 if (typeof window.onGameSetWindowSize === 'function') {
                     window.onGameSetWindowSize(Math.round(newWidth), Math.round(newHeight));
                 }
 
-                console.log(`[Resize] Container: ${containerWidth}x${containerHeight} → Canvas: ${newWidth}x${newHeight}`);
+                console.log(`[Resize] Canvas: ${newWidth}x${newHeight}`);
             }
 
-            // Throttled resize handler for better performance
             function handleResize() {
                 if (resizeTimeout) clearTimeout(resizeTimeout);
                 resizeTimeout = setTimeout(resizeCanvas, 100);
             }
 
-            // Initial setup
             function init() {
                 resizeCanvas();
                 window.addEventListener('resize', handleResize);
                 window.addEventListener('orientationchange', handleResize);
                 
-                // Also watch for canvas being recreated
                 const observer = new MutationObserver(() => {
-                    const newCanvas = document.querySelector('canvas');
-                    if (newCanvas !== canvas) {
+                    if (document.querySelector('canvas') !== canvas) {
                         canvas = null;
                         resizeCanvas();
                     }
