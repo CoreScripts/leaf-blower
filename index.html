@@ -41,6 +41,16 @@
             background: #000;
         }
     </style>
+    
+    <!-- Set the correct base path for all assets -->
+    <script>
+        // Set the base path to the current directory (where index.html lives)
+        const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/";
+        const base = document.createElement("base");
+        base.href = basePath;
+        document.head.appendChild(base);
+        window.__assetsPath = path => basePath + (path || "");
+    </script>
 </head>
 <body>
     <div class="game-container"></div>
@@ -58,8 +68,10 @@
         }
     </script>
 
-    <!-- Load the game's runner -->
-    <script src="runner.js"></script>
+    <!-- Load the game's framework and assets (order matters!) -->
+    <script src="assets/framework-3b691a7f793c662c.js"></script>
+    <script type="module" crossorigin src="assets/index-e14a4958.js"></script>
+    <link rel="stylesheet" href="assets/index-232229dc.css">
 
     <!-- SCALING FIX: Calculate proper canvas dimensions based on game's native resolution -->
     <script>
@@ -71,6 +83,7 @@
 
             let canvas = null;
             let container = null;
+            let resizeTimeout = null;
 
             function resizeCanvas() {
                 if (!canvas || !container) {
@@ -114,21 +127,28 @@
 
                 // Notify the game wrapper about the new size
                 if (typeof window.onGameSetWindowSize === 'function') {
-                    window.onGameSetWindowSize(newWidth, newHeight);
+                    window.onGameSetWindowSize(Math.round(newWidth), Math.round(newHeight));
                 }
 
                 console.log(`[Resize] Container: ${containerWidth}x${containerHeight} → Canvas: ${newWidth}x${newHeight}`);
             }
 
+            // Throttled resize handler for better performance
+            function handleResize() {
+                if (resizeTimeout) clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(resizeCanvas, 100);
+            }
+
             // Initial setup
             function init() {
                 resizeCanvas();
-                window.addEventListener('resize', resizeCanvas);
-                window.addEventListener('orientationchange', resizeCanvas);
+                window.addEventListener('resize', handleResize);
+                window.addEventListener('orientationchange', handleResize);
                 
                 // Also watch for canvas being recreated
                 const observer = new MutationObserver(() => {
-                    if (document.querySelector('canvas') !== canvas) {
+                    const newCanvas = document.querySelector('canvas');
+                    if (newCanvas !== canvas) {
                         canvas = null;
                         resizeCanvas();
                     }
