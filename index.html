@@ -1,245 +1,173 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <title>Leaf Blower Idle</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html, body {
-            width: 100%;
-            height: 100%;
-            background: #000;
-            overflow: hidden;
-            position: fixed;
-            top: 0;
-            left: 0;
-        }
-
-        .game-container {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: #000;
-        }
-
-        canvas {
-            display: block;
-            background: #000;
-        }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        user-select: none;
+      }
+      html, body {
+        width: 100%;
+        height: 100%;
+        background: black;
+        overflow: hidden;
+        position: fixed;
+        top: 0;
+        left: 0;
+      }
+      .game-container {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: black;
+      }
+      canvas {
+        display: block !important;
+        position: absolute !important;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
+        background: black !important;
+      }
     </style>
-    
-    <!-- Set base path -->
+
     <script>
+      try {
+        Object.defineProperty(window, 'localStorage', {
+          value: window.localStorage,
+          writable: false,
+          configurable: false
+        });
+      } catch(e) {}
+
+      function getLocalUrl(rawUrl) {
+        if (typeof rawUrl !== 'string') return rawUrl;
+        if (rawUrl.includes('api.gx.games') || rawUrl.includes('opera-api.com')) return 'mock-json';
+        const fileMatch = rawUrl.match(/(runner\.js|runner\.wasm|runner\.data|runner\.json|game\.unx|_buildManifest\.js)/);
+        if (fileMatch) return new URL('./' + fileMatch[1], window.location.href).href;
+        return rawUrl;
+      }
+
+      const mockPayload = {
+        data: {
+          title: "Leaf Blower Idle",
+          gameId: "local-dev",
+          version: "1.0.0",
+          manifest: { version: "1.0.0", scavenged: true },
+          player: { id: "local-user", name: "Player", anonymous: false },
+          saveState: { exists: true, slot: "default" }
+        },
+        status: "success", valid: true
+      };
+
+      const originalFetch = window.fetch;
+      window.fetch = async function(...args) {
+        let url = args[0];
+        const targetsLocal = getLocalUrl(url);
+        if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
+          return new Response(JSON.stringify(mockPayload), { status: 200, headers: {'Content-Type': 'application/json'} });
+        }
+        if (targetsLocal !== url) args[0] = targetsLocal;
+        return originalFetch(...args);
+      };
+
+      const originalOpen = XMLHttpRequest.prototype.open;
+      XMLHttpRequest.prototype.open = function(method, url, ...args) {
+        const targetsLocal = getLocalUrl(url);
+        if (targetsLocal === 'mock-json' || (typeof url === 'string' && url.includes('states'))) {
+          url = 'data:application/json,' + encodeURIComponent(JSON.stringify(mockPayload));
+        } else {
+          url = targetsLocal;
+        }
+        return originalOpen.call(this, method, url, ...args);
+      };
+
+      const OriginalWorker = window.Worker;
+      window.Worker = function(workerUrl, options) {
+        if (typeof workerUrl === 'string' && !workerUrl.startsWith('http')) {
+          workerUrl = new URL(workerUrl, window.location.origin + window.location.pathname).href;
+        }
+        return new OriginalWorker(workerUrl, options);
+      };
+
+      const originalJson = Response.prototype.json;
+      Response.prototype.json = async function() {
+        try { return await originalJson.call(this); } catch (err) { return mockPayload; }
+      };
+    </script>
+
+    <script>
+      {
         const basePath = window.location.pathname.split("/").slice(0, -1).join("/") + "/";
         const base = document.createElement("base");
         base.href = basePath;
         document.head.appendChild(base);
+        window.__assetsPath = path => basePath + (path || "");
+      }
     </script>
 
-    <!-- MOCK ALL EXTERNAL API CALLS -->
-    <script>
-        // Mock data for GX.games API
-        const MOCK_GAME_DATA = {
-            data: {
-                title: "Leaf Blower Idle",
-                gameId: "local-dev",
-                trackId: "",
-                releaseId: "",
-                coverImage: "",
-                gamePlayId: "mock-gameplay-id",
-                clientId: "mock-client-id",
-                sessionId: "mock-session-id",
-                feSessionId: "mock-fe-session-id"
-            }
-        };
-
-        // Mock runner.json (the game's manifest)
-        const MOCK_RUNNER = {
-            mainJS: "game.unx",
-            manifestFiles: ["game.unx"],
-            legacyRunner: true
-        };
-
-        // Store original fetch
-        const originalFetch = window.fetch;
-        
-        // Override fetch to mock external APIs
-        window.fetch = async function(url, options) {
-            const urlStr = typeof url === 'string' ? url : url.url;
-            
-            console.log('[Mock] Fetch:', urlStr);
-            
-            // Mock GX.games API calls
-            if (urlStr.includes('api.gx.games') || urlStr.includes('play.gx.games')) {
-                console.log('[Mock] Intercepted GX API call, returning mock data');
-                return new Response(JSON.stringify(MOCK_GAME_DATA), {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            }
-            
-            // Mock runner.json (prevent CORS errors)
-            if (urlStr.includes('runner.json')) {
-                console.log('[Mock] Intercepted runner.json request, returning mock manifest');
-                return new Response(JSON.stringify(MOCK_RUNNER), {
-                    status: 200,
-                    headers: { 'Content-Type': 'application/json' }
-                });
-            }
-            
-            // Mock Sentry (error tracking)
-            if (urlStr.includes('sentry-relay.opera-api.com')) {
-                console.log('[Mock] Blocked Sentry request');
-                return new Response('OK', { status: 200 });
-            }
-            
-            // Let all other requests through (local assets)
-            return originalFetch(url, options);
-        };
-        
-        // Mock XMLHttpRequest for same APIs
-        const originalXHROpen = XMLHttpRequest.prototype.open;
-        XMLHttpRequest.prototype.open = function(method, url, ...args) {
-            this._url = url;
-            if (typeof url === 'string' && 
-                (url.includes('api.gx.games') || 
-                 url.includes('play.gx.games') || 
-                 url.includes('runner.json') ||
-                 url.includes('sentry-relay.opera-api.com'))) {
-                console.log('[Mock] XHR intercepted:', url);
-                // Return mock response immediately
-                setTimeout(() => {
-                    if (this.onload) {
-                        Object.defineProperty(this, 'response', {
-                            value: JSON.stringify(url.includes('runner.json') ? MOCK_RUNNER : MOCK_GAME_DATA)
-                        });
-                        Object.defineProperty(this, 'status', { value: 200 });
-                        this.onload();
-                    }
-                }, 10);
-                return;
-            }
-            return originalXHROpen.call(this, method, url, ...args);
-        };
-        
-        // Mock Service Worker (not available on GitHub Pages)
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register = function() {
-                console.log('[Mock] ServiceWorker registration blocked');
-                return Promise.reject(new Error('ServiceWorker not supported in this context'));
-            };
-        }
-        
-        console.log('[Mock] All external API mocks initialized');
-    </script>
-
-    <!-- Mock localStorage -->
-    <script>
-        if (typeof localStorage === 'undefined' || !localStorage.getItem) {
-            let store = {};
-            window.localStorage = {
-                getItem: (key) => store[key] || null,
-                setItem: (key, value) => { store[key] = value.toString(); },
-                removeItem: (key) => { delete store[key]; },
-                clear: () => { store = {}; }
-            };
-        }
-    </script>
-</head>
-<body>
-    <div class="game-container"></div>
-
-    <!-- Load game assets -->
     <script src="assets/framework-3b691a7f793c662c.js"></script>
     <script type="module" crossorigin src="assets/index-e14a4958.js"></script>
     <link rel="stylesheet" href="assets/index-232229dc.css">
+  </head>
+  <body>
+    <div class="game-container"></div>
 
-    <!-- CANVAS SCALING FIX -->
     <script>
-        (function() {
-            const GAME_WIDTH = 1024;
-            const GAME_HEIGHT = 768;
-            const GAME_ASPECT = GAME_WIDTH / GAME_HEIGHT;
+      (function() {
+        // GameMaker games are typically 1024x768 — adjust if yours differs
+        var GAME_W = 1024, GAME_H = 768;
+        var canvas = null;
 
-            let canvas = null;
-            let container = null;
-            let resizeTimeout = null;
+        function scaleCanvas() {
+          if (!canvas) return;
+          var scale = Math.min(window.innerWidth / GAME_W, window.innerHeight / GAME_H);
+          var w = Math.floor(GAME_W * scale);
+          var h = Math.floor(GAME_H * scale);
+          canvas.style.width     = w + "px";
+          canvas.style.height    = h + "px";
+          canvas.style.transform = "translate(-50%, -50%)";
+        }
 
-            function resizeCanvas() {
-                if (!canvas || !container) {
-                    canvas = document.querySelector('canvas');
-                    container = document.querySelector('.game-container');
-                    if (!canvas || !container) {
-                        setTimeout(resizeCanvas, 100);
-                        return;
-                    }
-                    if (canvas.parentElement !== container) {
-                        container.appendChild(canvas);
-                    }
-                }
+        window.addEventListener("resize", scaleCanvas);
+        window.addEventListener("orientationchange", function() {
+          setTimeout(scaleCanvas, 100); // brief delay for orientation to settle
+        });
 
-                const containerWidth = container.clientWidth;
-                const containerHeight = container.clientHeight;
-                const containerAspect = containerWidth / containerHeight;
+        function waitForCanvas() {
+          var c = document.querySelector("canvas");
+          if (!c) { setTimeout(waitForCanvas, 50); return; }
+          canvas = c;
 
-                let newWidth, newHeight;
+          var container = document.querySelector(".game-container");
+          if (canvas.parentElement !== container) container.appendChild(canvas);
 
-                if (containerAspect > GAME_ASPECT) {
-                    newHeight = containerHeight;
-                    newWidth = newHeight * GAME_ASPECT;
-                } else {
-                    newWidth = containerWidth;
-                    newHeight = newWidth / GAME_ASPECT;
-                }
+          // MutationObserver: re-apply scale if game overwrites canvas style/attributes
+          var observer = new MutationObserver(scaleCanvas);
+          observer.observe(canvas, { attributes: true, attributeFilter: ["style", "width", "height"] });
 
-                canvas.style.width = `${newWidth}px`;
-                canvas.style.height = `${newHeight}px`;
-                canvas.width = GAME_WIDTH;
-                canvas.height = GAME_HEIGHT;
+          scaleCanvas();
 
-                if (typeof window.onGameSetWindowSize === 'function') {
-                    window.onGameSetWindowSize(Math.round(newWidth), Math.round(newHeight));
-                }
+          if (typeof window.onGameSetWindowSize === "function") {
+            window.onGameSetWindowSize(GAME_W, GAME_H);
+          }
+        }
 
-                console.log(`[Resize] Canvas: ${newWidth}x${newHeight}`);
-            }
+        waitForCanvas();
 
-            function handleResize() {
-                if (resizeTimeout) clearTimeout(resizeTimeout);
-                resizeTimeout = setTimeout(resizeCanvas, 100);
-            }
-
-            function init() {
-                resizeCanvas();
-                window.addEventListener('resize', handleResize);
-                window.addEventListener('orientationchange', handleResize);
-                
-                const observer = new MutationObserver(() => {
-                    if (document.querySelector('canvas') !== canvas) {
-                        canvas = null;
-                        resizeCanvas();
-                    }
-                });
-                observer.observe(document.body, { childList: true, subtree: true });
-            }
-
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', init);
-            } else {
-                init();
-            }
-        })();
+        var domObserver = new MutationObserver(function() {
+          if (document.querySelector("canvas")) {
+            waitForCanvas();
+            domObserver.disconnect();
+          }
+        });
+        domObserver.observe(document.body, { childList: true, subtree: true });
+      })();
     </script>
-</body>
+  </body>
 </html>
